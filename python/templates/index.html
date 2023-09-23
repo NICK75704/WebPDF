@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Annotator</title>
+    <style>
+        #canvasContainer {
+            position: absolute;
+            top: 20;
+            left: 0;
+            margin: auto;
+        }
+        #pdfCanvas {
+            position: absolute;
+            top: 20;
+            left: 0;
+            cursor: crosshair;
+        }
+        label{
+            font-family: courier;
+        }
+    </style>
+</head>
+<body>
+
+<form action="/" method="POST" enctype="multipart/form-data" style="text-align: center; margin-top: 20px;">
+    <input type="file" name="pdf_file">
+    <input type="submit" value="Upload">
+</form>
+
+<label style="font-family: courier;" for="tool">ToolPicker</label>
+    <select id = "toolType" onchange="changeTool(this)">
+        <option value="Pen">Pen</option>
+        <option value="Eraser">Eraser</option>
+    </select>
+
+<label for="size">ToolSizePicker</label>
+    <select id = "toolSize" onchange="changeSize(this)">
+        <option value="smol">Smol</option>
+        <option value="med">Medium</option>
+        <option value="big">Big</option>
+        <option value="vBig">Very Big</option>
+        <option value="mega">Mega</option>
+    </select>
+
+<label for="color">ColorPicker</label>
+    <select id = "toolSize" onchange="changeColor(this)">
+        <option value="black">Black</option>
+        <option value="red">Red</option>
+        <option value="blue">Blue</option>
+        <option value="green">Green</option>
+    </select>
+
+<button onclick="saveEditedPDF()">Save Edited PDF</button>
+
+<div id="canvasContainer">
+    {% if image_path %}
+    <img id="pdfImage" src="{{ image_path }}" alt="PDF Image" onload="initCanvas()">
+    <canvas id="pdfCanvas"></canvas>
+    {% endif %}
+</div>
+
+<script>
+    let isDrawing = false;
+    let isErasing = false;
+
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d'); 
+
+    const img = document.getElementById('pdfImage');
+
+    function initCanvas() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+    }
+
+    canvas.addEventListener('mousedown', () => {
+        isDrawing = true;
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDrawing = false;
+        ctx.beginPath();
+    });
+
+    canvas.addEventListener('mousemove', draw);
+
+    function draw(event) {
+        if (!isDrawing) return;
+
+        ctx.lineCap = 'round';
+
+        if (isErasing) {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.strokeStyle = 'rgba(0,0,0,1)';
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+        }
+
+        ctx.lineTo(event.clientX - canvas.offsetLeft, event.clientY - canvas.offsetTop - 55);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(event.clientX - canvas.offsetLeft, event.clientY - canvas.offsetTop - 55);
+    }
+
+    function changeColor(colorPicked){
+        var color = colorPicked.value;
+        if(color == "black"){
+            ctx.strokeStyle = 'black';
+        }
+        else if(color == "red"){
+            ctx.strokeStyle = 'red';
+        }
+        else if(color == "blue"){
+            ctx.strokeStyle = 'blue';
+        }
+        else if(color == "green"){
+            ctx.strokeStyle = 'green';
+        }
+    }
+
+    function changeTool(toolType){
+        var tool = toolType.value;
+        if(tool == "Pen"){
+            isDrawing = true;
+            isErasing = false;
+        }
+        else if(tool == "Eraser"){
+            isDrawing == false;
+            isErasing = true;
+        }
+    }
+
+    function changeSize(toolSize){
+        var size = toolSize.value;
+        if(size == "smol"){
+            ctx.lineWidth = 1;
+        }
+        else if(size == "med"){
+            ctx.lineWidth = 4;
+        }
+        else if(size == "big"){
+            ctx.lineWidth = 8;
+        }
+        else if(size == "vBig"){
+            ctx.lineWidth = 16;
+        }
+        else if(size == "mega"){
+            ctx.lineWidth = 64;
+        }
+    }
+
+    function saveEditedPDF() {
+    const dataURL = canvas.toDataURL("image/png");
+
+    fetch('/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            'imageData': dataURL
+        })
+    }).then(response => {
+        if(response.ok) {
+            response.blob().then(blob => {
+                let link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = 'edited_pdf.pdf';
+                link.click();
+            });
+        }
+    });
+}
+</script>
+
+</body>
+</html>
